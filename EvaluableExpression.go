@@ -38,16 +38,6 @@ type EvaluableExpression struct {
 }
 
 /*
-	Parses a new EvaluableExpression from the given [expression] string.
-	Returns an error if the given expression has invalid syntax.
-*/
-func NewEvaluableExpression(expression string) (*EvaluableExpression, error) {
-
-	functions := make(map[string]ExpressionFunction)
-	return NewEvaluableExpressionWithFunctions(expression, functions)
-}
-
-/*
 	Similar to [NewEvaluableExpression], except that instead of a string, an already-tokenized expression is given.
 	This is useful in cases where you may be generating an expression automatically, or using some other parser (e.g., to parse from a query language)
 */
@@ -83,11 +73,11 @@ func NewEvaluableExpressionFromTokens(tokens []ExpressionToken) (*EvaluableExpre
 	return ret, nil
 }
 
-/*
-	Similar to [NewEvaluableExpression], except enables the use of user-defined functions.
-	Functions passed into this will be available to the expression.
-*/
-func NewEvaluableExpressionWithFunctions(expression string, functions map[string]ExpressionFunction) (*EvaluableExpression, error) {
+func NewEvaluableExpressionBuilder() (*EvaluableExpression, error) {
+
+}
+
+func NewFunctionalCriteriaExpression(expression string, function OperandHandler) (*EvaluableExpression, error) {
 
 	var ret *EvaluableExpression
 	var err error
@@ -96,7 +86,7 @@ func NewEvaluableExpressionWithFunctions(expression string, functions map[string
 	ret.QueryDateFormat = isoDateFormat
 	ret.inputExpression = expression
 
-	ret.tokens, err = parseTokens(expression, functions)
+	ret.tokens, err = parseTokens(expression, function)
 	if err != nil {
 		return nil, err
 	}

@@ -6,26 +6,23 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
-	"strings"
 	"time"
 	"unicode"
 )
 
-func parseTokens(expression string, functions map[string]ExpressionFunction) ([]ExpressionToken, error) {
+func parseTokens(expression string, criterionFunction OperandHandler) ([]ExpressionToken, error) {
 
 	var ret []ExpressionToken
 	var token ExpressionToken
 	var stream *lexerStream
-	var state lexerState
 	var err error
 	var found bool
 
 	stream = newLexerStream(expression)
-	state = validLexerStates[0]
 
 	for stream.canRead() {
 
-		token, err, found = readToken(stream, state, functions)
+		token, err, found = readToken(stream, criterionFunction)
 
 		if err != nil {
 			return ret, err
@@ -33,11 +30,6 @@ func parseTokens(expression string, functions map[string]ExpressionFunction) ([]
 
 		if !found {
 			break
-		}
-
-		state, err = getLexerStateForToken(token.Kind)
-		if err != nil {
-			return ret, err
 		}
 
 		// append this valid token
@@ -52,9 +44,8 @@ func parseTokens(expression string, functions map[string]ExpressionFunction) ([]
 	return ret, nil
 }
 
-func readToken(stream *lexerStream, state lexerState, functions map[string]ExpressionFunction) (ExpressionToken, error, bool) {
+func readToken(stream *lexerStream, criterionFunction OperandHandler) (ExpressionToken, error, bool) {
 
-	var function ExpressionFunction
 	var ret ExpressionToken
 	var tokenValue interface{}
 	var tokenTime time.Time
@@ -138,68 +129,26 @@ func readToken(stream *lexerStream, state lexerState, functions map[string]Expre
 			break
 		}
 
+		for setLogicalOperatorSymbol, setLogicalOperator := range operationsOnSetsSymbols {
+			if stream.isNext(setLogicalOperatorSymbol, 1) {
+				kind = OPERATION_ON_SETS
+				tokenValue = setLogicalOperator.String()
+				stream.forward(setLogicalOperatorSymbol)
+				break
+			}
+		}
+
+		if kind == OPERATION_ON_SETS {
+			break
+		}
+
 		// regular variable - or function?
 		if unicode.IsLetter(character) {
 
 			tokenString = readTokenUntilFalse(stream, isVariableName)
 
-			tokenValue = tokenString
-			kind = VARIABLE
-
-			// boolean?
-			if tokenValue == "true" {
-
-				kind = BOOLEAN
-				tokenValue = true
-			} else {
-
-				if tokenValue == "false" {
-
-					kind = BOOLEAN
-					tokenValue = false
-				}
-			}
-
-			// textual operator?
-			if tokenValue == "in" || tokenValue == "IN" {
-
-				// force lower case for consistency
-				tokenValue = "in"
-				kind = COMPARATOR
-			}
-
-			// function?
-			function, found = functions[tokenString]
-			if found {
-				kind = FUNCTION
-				tokenValue = function
-			}
-
-			// accessor?
-			accessorIndex := strings.Index(tokenString, ".")
-			if accessorIndex > 0 {
-
-				// check that it doesn't end with a hanging period
-				if tokenString[len(tokenString)-1] == '.' {
-					errorMsg := fmt.Sprintf("Hanging accessor on token '%s'", tokenString)
-					return ExpressionToken{}, errors.New(errorMsg), false
-				}
-
-				kind = ACCESSOR
-				splits := strings.Split(tokenString, ".")
-				tokenValue = splits
-
-				// check that none of them are unexported
-				for i := 1; i < len(splits); i++ {
-
-					firstCharacter := getFirstRune(splits[i])
-
-					if unicode.ToUpper(firstCharacter) != firstCharacter {
-						errorMsg := fmt.Sprintf("Unable to access unexported field '%s' in token '%s'", splits[i], tokenString)
-						return ExpressionToken{}, errors.New(errorMsg), false
-					}
-				}
-			}
+			kind = FUNCTION
+			tokenValue = FunctionParameterPair{function: criterionFunction, parameter: tokenString}
 			break
 		}
 
@@ -239,44 +188,6 @@ func readToken(stream *lexerStream, state lexerState, functions map[string]Expre
 		// must be a known symbol
 		tokenString = readTokenUntilFalse(stream, isNotAlphanumeric)
 		tokenValue = tokenString
-
-		// quick hack for the case where "-" can mean "prefixed negation" or "minus", which are used
-		// very differently.
-		if state.canTransitionTo(PREFIX) {
-			_, found = prefixSymbols[tokenString]
-			if found {
-
-				kind = PREFIX
-				break
-			}
-		}
-		_, found = modifierSymbols[tokenString]
-		if found {
-
-			kind = MODIFIER
-			break
-		}
-
-		_, found = logicalSymbols[tokenString]
-		if found {
-
-			kind = LOGICALOP
-			break
-		}
-
-		_, found = comparatorSymbols[tokenString]
-		if found {
-
-			kind = COMPARATOR
-			break
-		}
-
-		_, found = ternarySymbols[tokenString]
-		if found {
-
-			kind = TERNARY
-			break
-		}
 
 		errorMessage := fmt.Sprintf("Invalid token: '%s'", tokenString)
 		return ret, errors.New(errorMessage), false
@@ -414,10 +325,6 @@ func checkBalance(tokens []ExpressionToken) error {
 	return nil
 }
 
-func isDigit(character rune) bool {
-	return unicode.IsDigit(character)
-}
-
 func isHexDigit(character rune) bool {
 
 	character = unicode.ToLower(character)
@@ -514,13 +421,4 @@ func tryParseExactTime(candidate string, format string) (time.Time, bool) {
 	}
 
 	return ret, true
-}
-
-func getFirstRune(candidate string) rune {
-
-	for _, character := range candidate {
-		return character
-	}
-
-	return 0
 }

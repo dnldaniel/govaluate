@@ -57,22 +57,12 @@ func (this EvaluableExpression) findNextSQLString(stream *tokenStream, transacti
 	case TIME:
 		ret = fmt.Sprintf("'%s'", token.Value.(time.Time).Format(this.QueryDateFormat))
 
-	case LOGICALOP:
-		switch logicalSymbols[token.Value.(string)] {
-
-		case AND:
-			ret = "AND"
-		case OR:
-			ret = "OR"
-		}
-
 	case BOOLEAN:
 		if token.Value.(bool) {
 			ret = "1"
 		} else {
 			ret = "0"
 		}
-
 	case VARIABLE:
 		ret = fmt.Sprintf("[%s]", token.Value.(string))
 
@@ -111,45 +101,6 @@ func (this EvaluableExpression) findNextSQLString(stream *tokenStream, transacti
 			fallthrough
 		case TERNARY_FALSE:
 			return "", errors.New("Ternary operators are unsupported in SQL output")
-		}
-	case PREFIX:
-		switch prefixSymbols[token.Value.(string)] {
-
-		case INVERT:
-			ret = fmt.Sprintf("NOT")
-		default:
-
-			right, err := this.findNextSQLString(stream, transactions)
-			if err != nil {
-				return "", err
-			}
-
-			ret = fmt.Sprintf("%s%s", token.Value.(string), right)
-		}
-	case MODIFIER:
-
-		switch modifierSymbols[token.Value.(string)] {
-
-		case EXPONENT:
-
-			left := transactions.rollback()
-			right, err := this.findNextSQLString(stream, transactions)
-			if err != nil {
-				return "", err
-			}
-
-			ret = fmt.Sprintf("POW(%s, %s)", left, right)
-		case MODULUS:
-
-			left := transactions.rollback()
-			right, err := this.findNextSQLString(stream, transactions)
-			if err != nil {
-				return "", err
-			}
-
-			ret = fmt.Sprintf("MOD(%s, %s)", left, right)
-		default:
-			ret = fmt.Sprintf("%s", token.Value.(string))
 		}
 	case CLAUSE:
 		ret = "("

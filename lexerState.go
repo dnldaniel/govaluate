@@ -36,6 +36,16 @@ var validLexerStates = []lexerState{
 	},
 
 	lexerState{
+		kind:       OPERATION_ON_SETS,
+		isEOF:      true,
+		isNullable: false,
+		validNextKinds: []TokenKind{
+			FUNCTION,
+			CLAUSE,
+		},
+	},
+
+	lexerState{
 
 		kind:       CLAUSE,
 		isEOF:      false,
@@ -76,6 +86,7 @@ var validLexerStates = []lexerState{
 			LOGICALOP,
 			TERNARY,
 			SEPARATOR,
+			OPERATION_ON_SETS,
 		},
 	},
 
@@ -263,10 +274,11 @@ var validLexerStates = []lexerState{
 	lexerState{
 
 		kind:       FUNCTION,
-		isEOF:      false,
+		isEOF:      true,
 		isNullable: false,
 		validNextKinds: []TokenKind{
-			CLAUSE,
+			CLAUSE_CLOSE,
+			OPERATION_ON_SETS,
 		},
 	},
 	lexerState{

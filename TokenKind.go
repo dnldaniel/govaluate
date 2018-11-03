@@ -27,6 +27,8 @@ const (
 	CLAUSE_CLOSE
 
 	TERNARY
+
+	OPERATION_ON_SETS
 )
 
 /*

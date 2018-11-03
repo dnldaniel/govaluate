@@ -23,8 +23,11 @@ const (
 	AND
 	OR
 
+	SET_AND
+	SET_OR
+	SET_MINUS
+
 	PLUS
-	MINUS
 	BITWISE_AND
 	BITWISE_OR
 	BITWISE_XOR
@@ -56,7 +59,6 @@ const (
 	functionalPrecedence
 	prefixPrecedence
 	exponentialPrecedence
-	additivePrecedence
 	bitwisePrecedence
 	bitwiseShiftPrecedence
 	multiplicativePrecedence
@@ -94,6 +96,12 @@ func findOperatorPrecedenceForSymbol(symbol OperatorSymbol) operatorPrecedence {
 		return comparatorPrecedence
 	case AND:
 		return logicalAndPrecedence
+	case SET_AND:
+		return logicalAndPrecedence
+	case SET_OR:
+		return logicalAndPrecedence
+	case SET_MINUS:
+		return logicalAndPrecedence
 	case OR:
 		return logicalOrPrecedence
 	case BITWISE_AND:
@@ -108,8 +116,6 @@ func findOperatorPrecedenceForSymbol(symbol OperatorSymbol) operatorPrecedence {
 		return bitwiseShiftPrecedence
 	case PLUS:
 		fallthrough
-	case MINUS:
-		return additivePrecedence
 	case MULTIPLY:
 		fallthrough
 	case DIVIDE:
@@ -158,41 +164,8 @@ var comparatorSymbols = map[string]OperatorSymbol{
 	"in": IN,
 }
 
-var logicalSymbols = map[string]OperatorSymbol{
-	"&&": AND,
-	"||": OR,
-}
-
-var bitwiseSymbols = map[string]OperatorSymbol{
-	"^": BITWISE_XOR,
-	"&": BITWISE_AND,
-	"|": BITWISE_OR,
-}
-
-var bitwiseShiftSymbols = map[string]OperatorSymbol{
-	">>": BITWISE_RSHIFT,
-	"<<": BITWISE_LSHIFT,
-}
-
-var additiveSymbols = map[string]OperatorSymbol{
-	"+": PLUS,
-	"-": MINUS,
-}
-
-var multiplicativeSymbols = map[string]OperatorSymbol{
-	"*": MULTIPLY,
-	"/": DIVIDE,
-	"%": MODULUS,
-}
-
 var exponentialSymbolsS = map[string]OperatorSymbol{
 	"**": EXPONENT,
-}
-
-var prefixSymbols = map[string]OperatorSymbol{
-	"-": NEGATE,
-	"!": INVERT,
-	"~": BITWISE_NOT,
 }
 
 var ternarySymbols = map[string]OperatorSymbol{
@@ -201,23 +174,14 @@ var ternarySymbols = map[string]OperatorSymbol{
 	"??": COALESCE,
 }
 
-// this is defined separately from additiveSymbols et al because it's needed for parsing, not stage planning.
-var modifierSymbols = map[string]OperatorSymbol{
-	"+":  PLUS,
-	"-":  MINUS,
-	"*":  MULTIPLY,
-	"/":  DIVIDE,
-	"%":  MODULUS,
-	"**": EXPONENT,
-	"&":  BITWISE_AND,
-	"|":  BITWISE_OR,
-	"^":  BITWISE_XOR,
-	">>": BITWISE_RSHIFT,
-	"<<": BITWISE_LSHIFT,
-}
-
 var separatorSymbols = map[string]OperatorSymbol{
 	",": SEPARATE,
+}
+
+var operationsOnSetsSymbols = map[string]OperatorSymbol{
+	"AND":   SET_AND,
+	"OR":    SET_OR,
+	"MINUS": SET_MINUS, // relative complement
 }
 
 /*
@@ -268,6 +232,12 @@ func (this OperatorSymbol) String() string {
 		return "&&"
 	case OR:
 		return "||"
+	case SET_AND:
+		return "AND"
+	case SET_OR:
+		return "OR"
+	case SET_MINUS:
+		return "-"
 	case IN:
 		return "in"
 	case BITWISE_AND:
@@ -282,8 +252,6 @@ func (this OperatorSymbol) String() string {
 		return ">>"
 	case PLUS:
 		return "+"
-	case MINUS:
-		return "-"
 	case MULTIPLY:
 		return "*"
 	case DIVIDE:

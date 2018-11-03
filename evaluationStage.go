@@ -17,7 +17,7 @@ const (
 	prefixErrorFormat     string = "Value '%v' cannot be used with the prefix '%v'"
 )
 
-type evaluationOperator func(left interface{}, right interface{}, parameters Parameters) (interface{}, error)
+type EvaluationOperator func(left interface{}, right interface{}, parameters Parameters) (interface{}, error)
 type stageTypeCheck func(value interface{}) bool
 type stageCombinedTypeCheck func(left interface{}, right interface{}) bool
 
@@ -27,7 +27,7 @@ type evaluationStage struct {
 	leftStage, rightStage *evaluationStage
 
 	// the operation that will be used to evaluate this stage (such as adding [left] to [right] and return the result)
-	operator evaluationOperator
+	operator EvaluationOperator
 
 	// ensures that both left and right values are appropriate for this stage. Returns an error if they aren't operable.
 	leftTypeCheck  stageTypeCheck
@@ -143,6 +143,15 @@ func notEqualStage(left interface{}, right interface{}, parameters Parameters) (
 func andStage(left interface{}, right interface{}, parameters Parameters) (interface{}, error) {
 	return boolIface(left.(bool) && right.(bool)), nil
 }
+func setAndStage(left interface{}, right interface{}, parameters Parameters) (interface{}, error) {
+	return "(" + left.(string) + " AND " + right.(string) + ")", nil
+}
+func setOrStage(left interface{}, right interface{}, parameters Parameters) (interface{}, error) {
+	return "(" + left.(string) + " OR " + right.(string) + ")", nil
+}
+func setMinusStage(left interface{}, right interface{}, parameters Parameters) (interface{}, error) {
+	return "(" + left.(string) + " - " + right.(string) + ")", nil
+}
 func orStage(left interface{}, right interface{}, parameters Parameters) (interface{}, error) {
 	return boolIface(left.(bool) || right.(bool)), nil
 }
@@ -212,7 +221,7 @@ func rightShiftStage(left interface{}, right interface{}, parameters Parameters)
 	return float64(uint64(left.(float64)) >> uint64(right.(float64))), nil
 }
 
-func makeParameterStage(parameterName string) evaluationOperator {
+func makeParameterStage(parameterName string) EvaluationOperator {
 
 	return func(left interface{}, right interface{}, parameters Parameters) (interface{}, error) {
 		value, err := parameters.Get(parameterName)
@@ -224,26 +233,15 @@ func makeParameterStage(parameterName string) evaluationOperator {
 	}
 }
 
-func makeLiteralStage(literal interface{}) evaluationOperator {
+func makeLiteralStage(literal interface{}) EvaluationOperator {
 	return func(left interface{}, right interface{}, parameters Parameters) (interface{}, error) {
 		return literal, nil
 	}
 }
 
-func makeFunctionStage(function ExpressionFunction) evaluationOperator {
-
+func makeFunctionStage(parameterPair FunctionParameterPair) EvaluationOperator {
 	return func(left interface{}, right interface{}, parameters Parameters) (interface{}, error) {
-
-		if right == nil {
-			return function()
-		}
-
-		switch right.(type) {
-		case []interface{}:
-			return function(right.([]interface{})...)
-		default:
-			return function(right)
-		}
+		return parameterPair.NewFunction()
 	}
 }
 
@@ -289,7 +287,7 @@ func typeConvertParams(method reflect.Value, params []reflect.Value) ([]reflect.
 	return params, nil
 }
 
-func makeAccessorStage(pair []string) evaluationOperator {
+func makeAccessorStage(pair []string) EvaluationOperator {
 
 	reconstructed := strings.Join(pair, ".")
 

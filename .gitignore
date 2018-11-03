@@ -26,3 +26,6 @@ coverage.out
 manual_test.go
 *.out
 *.err
+
+.idea
+*.iml

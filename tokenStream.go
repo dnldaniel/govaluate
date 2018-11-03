@@ -34,3 +34,18 @@ func (this tokenStream) hasNext() bool {
 
 	return this.index < this.tokenLength
 }
+
+func (this tokenStream) hasNextTokens(kinds ...TokenKind) bool {
+	if len(kinds) > (this.tokenLength - this.index) {
+		return false
+	}
+
+	index := this.index
+	for k, v := range kinds {
+		if v != this.tokens[index+k].Kind {
+			return false
+		}
+	}
+
+	return true
+}
