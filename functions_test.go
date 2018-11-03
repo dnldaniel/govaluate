@@ -13,12 +13,9 @@ func Test(t *testing.T) {
 		println("clientSideFunction called: " + criterionName)
 		return criterionName, nil
 	}
-	var setOrHandler EvaluationOperator = func(left interface{}, right interface{}, parameters Parameters) (interface{}, error) {
-		return "whatever", nil
-	}
 
 	evaluableExpression, err := NewFunctionalCriteriaExpression(inputExpression,
-		criterionHandler).OverrideOperator("OR", setOrHandler)
+		criterionHandler)
 	result, err := evaluableExpression.Eval(MapParameters(map[string]interface{}{}))
 	println(result.(string))
 

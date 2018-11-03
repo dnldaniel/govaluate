@@ -29,3 +29,5 @@ manual_test.go
 
 .idea
 *.iml
+
+vendor

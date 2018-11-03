@@ -15,7 +15,6 @@ var DUMMY_PARAMETERS = MapParameters(map[string]interface{}{})
 	are an expression that can be evaluated down into a single value.
 */
 type EvaluableExpression struct {
-
 	/*
 		Represents the query format used to output dates. Typically only used when creating SQL or Mongo queries from an expression.
 		Defaults to the complete ISO8601 format, including nanoseconds.
@@ -73,8 +72,22 @@ func NewEvaluableExpressionFromTokens(tokens []ExpressionToken) (*EvaluableExpre
 	return ret, nil
 }
 
-func NewEvaluableExpressionBuilder() (*EvaluableExpression, error) {
+type EvaluableExpressionBuilder struct {
+	expression       string
+	operandHandler   OperandHandler
+	operatorBySymbol map[string]EvaluationOperator
+}
 
+func NewEvaluableExpressionBuilder(operandHandler OperandHandler) *EvaluableExpressionBuilder {
+	return &EvaluableExpressionBuilder{operandHandler: operandHandler, operatorBySymbol:make(map[string]EvaluationOperator)}
+}
+
+func (eeb *EvaluableExpressionBuilder) WithOperator(symbol string, symbolHandler EvaluationOperator) {
+	eeb.operatorBySymbol[symbol] = symbolHandler
+}
+
+func (eeb *EvaluableExpressionBuilder) Build() (*EvaluableExpression, error) {
+	return NewFunctionalCriteriaExpression(eeb.expression, eeb.operandHandler)
 }
 
 func NewFunctionalCriteriaExpression(expression string, function OperandHandler) (*EvaluableExpression, error) {
