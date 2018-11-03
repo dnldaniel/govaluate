@@ -36,61 +36,31 @@ type EvaluableExpression struct {
 	inputExpression  string
 }
 
-/*
-	Similar to [NewEvaluableExpression], except that instead of a string, an already-tokenized expression is given.
-	This is useful in cases where you may be generating an expression automatically, or using some other parser (e.g., to parse from a query language)
-*/
-func NewEvaluableExpressionFromTokens(tokens []ExpressionToken) (*EvaluableExpression, error) {
-
-	var ret *EvaluableExpression
-	var err error
-
-	ret = new(EvaluableExpression)
-	ret.QueryDateFormat = isoDateFormat
-
-	err = checkBalance(tokens)
-	if err != nil {
-		return nil, err
-	}
-
-	err = checkExpressionSyntax(tokens)
-	if err != nil {
-		return nil, err
-	}
-
-	ret.tokens, err = optimizeTokens(tokens)
-	if err != nil {
-		return nil, err
-	}
-
-	ret.evaluationStages, err = planStages(ret.tokens)
-	if err != nil {
-		return nil, err
-	}
-
-	ret.ChecksTypes = true
-	return ret, nil
-}
-
 type EvaluableExpressionBuilder struct {
-	expression       string
 	operandHandler   OperandHandler
 	operatorBySymbol map[string]EvaluationOperator
 }
 
 func NewEvaluableExpressionBuilder(operandHandler OperandHandler) *EvaluableExpressionBuilder {
-	return &EvaluableExpressionBuilder{operandHandler: operandHandler, operatorBySymbol:make(map[string]EvaluationOperator)}
+	return &EvaluableExpressionBuilder{operandHandler: operandHandler, operatorBySymbol: make(map[string]EvaluationOperator)}
 }
 
-func (eeb *EvaluableExpressionBuilder) WithOperator(symbol string, symbolHandler EvaluationOperator) {
+func (eeb *EvaluableExpressionBuilder) WithOperator(symbol string, symbolHandler EvaluationOperator) *EvaluableExpressionBuilder {
 	eeb.operatorBySymbol[symbol] = symbolHandler
+	return eeb
 }
 
-func (eeb *EvaluableExpressionBuilder) Build() (*EvaluableExpression, error) {
-	return NewFunctionalCriteriaExpression(eeb.expression, eeb.operandHandler)
+func (eeb *EvaluableExpressionBuilder) Build(expression string) (*EvaluableExpression, error) {
+	return NewFunctionalCriteriaExpression(expression, eeb.operandHandler, eeb.operatorBySymbol)
 }
 
-func NewFunctionalCriteriaExpression(expression string, function OperandHandler) (*EvaluableExpression, error) {
+type expressionInput struct {
+	expression       string
+	function         OperandHandler
+	operatorBySymbol map[string]EvaluationOperator
+}
+
+func NewFunctionalCriteriaExpression(expression string, function OperandHandler, operatorBySymbol map[string]EvaluationOperator) (*EvaluableExpression, error) {
 
 	var ret *EvaluableExpression
 	var err error
@@ -119,7 +89,7 @@ func NewFunctionalCriteriaExpression(expression string, function OperandHandler)
 		return nil, err
 	}
 
-	ret.evaluationStages, err = planStages(ret.tokens)
+	ret.evaluationStages, err = planStages(ret.tokens, operatorBySymbol)
 	if err != nil {
 		return nil, err
 	}

@@ -127,11 +127,11 @@ func makePrecedentFromPlanner(planner *precedencePlanner) precedent {
 	which is used to completely evaluate a set of tokens at evaluation-time.
 	The three stages of evaluation can be thought of as parsing strings to tokens, then tokens to a stage list, then evaluation with parameters.
 */
-func planStages(tokens []ExpressionToken) (*evaluationStage, error) {
+func planStages(tokens []ExpressionToken, operatorBySymbol map[string]EvaluationOperator) (*evaluationStage, error) {
 
 	stream := newTokenStream(tokens)
 
-	stage, err := planTokens(stream)
+	stage, err := planTokens(stream, operatorBySymbol)
 	if err != nil {
 		return nil, err
 	}
@@ -144,11 +144,18 @@ func planStages(tokens []ExpressionToken) (*evaluationStage, error) {
 	return stage, nil
 }
 
-func planTokens(stream *tokenStream) (*evaluationStage, error) {
+func planTokens(stream *tokenStream, operatorBySymbol map[string]EvaluationOperator) (*evaluationStage, error) {
 
 	if !stream.hasNext() {
 		return nil, nil
 	}
+
+	makePrecedentFromPlanner(&precedencePlanner{
+		validSymbols:    map[string]OperatorSymbol{"OR": SET_OR},
+		validKinds:      []TokenKind{OPERATION_ON_SETS},
+		typeErrorFormat: logicalErrorFormat,
+		next:            planLogicalSetAnd,
+	})
 
 	return planLogicalSetOr(stream)
 }
