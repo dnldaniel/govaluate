@@ -20,7 +20,6 @@ const (
 	ACCESSOR
 
 	COMPARATOR
-	LOGICALOP
 	MODIFIER
 
 	CLAUSE
@@ -59,8 +58,6 @@ func (kind TokenKind) String() string {
 		return "SEPARATOR"
 	case COMPARATOR:
 		return "COMPARATOR"
-	case LOGICALOP:
-		return "LOGICALOP"
 	case MODIFIER:
 		return "MODIFIER"
 	case CLAUSE:

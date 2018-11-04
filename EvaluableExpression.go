@@ -54,12 +54,6 @@ func (eeb *EvaluableExpressionBuilder) Build(expression string) (*EvaluableExpre
 	return NewFunctionalCriteriaExpression(expression, eeb.operandHandler, eeb.operatorBySymbol)
 }
 
-type expressionInput struct {
-	expression       string
-	function         OperandHandler
-	operatorBySymbol map[string]EvaluationOperator
-}
-
 func NewFunctionalCriteriaExpression(expression string, function OperandHandler, operatorBySymbol map[string]EvaluationOperator) (*EvaluableExpression, error) {
 
 	var ret *EvaluableExpression
@@ -99,18 +93,6 @@ func NewFunctionalCriteriaExpression(expression string, function OperandHandler,
 }
 
 /*
-	Same as `Eval`, but automatically wraps a map of parameters into a `govalute.Parameters` structure.
-*/
-func (this EvaluableExpression) Evaluate(parameters map[string]interface{}) (interface{}, error) {
-
-	if parameters == nil {
-		return this.Eval(nil)
-	}
-
-	return this.Eval(MapParameters(parameters))
-}
-
-/*
 	Runs the entire expression using the given [parameters].
 	e.g., If the expression contains a reference to the variable "foo", it will be taken from `parameters.Get("foo")`.
 
@@ -121,19 +103,13 @@ func (this EvaluableExpression) Evaluate(parameters map[string]interface{}) (int
 	e.g., if the expression is "1 + 1", this will return 2.0.
 	e.g., if the expression is "foo + 1" and parameters contains "foo" = 2, this will return 3.0
 */
-func (this EvaluableExpression) Eval(parameters Parameters) (interface{}, error) {
+func (this EvaluableExpression) Eval() (interface{}, error) {
 
 	if this.evaluationStages == nil {
 		return nil, nil
 	}
 
-	if parameters != nil {
-		parameters = &sanitizedParameters{parameters}
-	} else {
-		parameters = DUMMY_PARAMETERS
-	}
-
-	return this.evaluateStage(this.evaluationStages, parameters)
+	return this.evaluateStage(this.evaluationStages, DUMMY_PARAMETERS)
 }
 
 func (this EvaluableExpression) evaluateStage(stage *evaluationStage, parameters Parameters) (interface{}, error) {
@@ -145,32 +121,6 @@ func (this EvaluableExpression) evaluateStage(stage *evaluationStage, parameters
 		left, err = this.evaluateStage(stage.leftStage, parameters)
 		if err != nil {
 			return nil, err
-		}
-	}
-
-	if stage.isShortCircuitable() {
-		switch stage.symbol {
-		case AND:
-			if left == false {
-				return false, nil
-			}
-		case OR:
-			if left == true {
-				return true, nil
-			}
-		case COALESCE:
-			if left != nil {
-				return left, nil
-			}
-
-		case TERNARY_TRUE:
-			if left == false {
-				right = shortCircuitHolder
-			}
-		case TERNARY_FALSE:
-			if left != nil {
-				right = shortCircuitHolder
-			}
 		}
 	}
 

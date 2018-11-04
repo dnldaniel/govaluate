@@ -10,11 +10,7 @@ import (
 )
 
 const (
-	logicalErrorFormat    string = "Value '%v' cannot be used with the logical operator '%v', it is not a bool"
-	modifierErrorFormat   string = "Value '%v' cannot be used with the modifier '%v', it is not a number"
-	comparatorErrorFormat string = "Value '%v' cannot be used with the comparator '%v', it is not a number"
-	ternaryErrorFormat    string = "Value '%v' cannot be used with the ternary operator '%v', it is not a bool"
-	prefixErrorFormat     string = "Value '%v' cannot be used with the prefix '%v'"
+	logicalErrorFormat string = "Value '%v' cannot be used with the operator '%v'"
 )
 
 type EvaluationOperator func(left interface{}, right interface{}, parameters Parameters) (interface{}, error)
@@ -64,24 +60,6 @@ func (this *evaluationStage) setToNonStage(other evaluationStage) {
 	this.typeErrorFormat = other.typeErrorFormat
 }
 
-func (this *evaluationStage) isShortCircuitable() bool {
-
-	switch this.symbol {
-	case AND:
-		fallthrough
-	case OR:
-		fallthrough
-	case TERNARY_TRUE:
-		fallthrough
-	case TERNARY_FALSE:
-		fallthrough
-	case COALESCE:
-		return true
-	}
-
-	return false
-}
-
 func noopStageRight(left interface{}, right interface{}, parameters Parameters) (interface{}, error) {
 	return right, nil
 }
@@ -94,9 +72,6 @@ func addStage(left interface{}, right interface{}, parameters Parameters) (inter
 	}
 
 	return left.(float64) + right.(float64), nil
-}
-func subtractStage(left interface{}, right interface{}, parameters Parameters) (interface{}, error) {
-	return left.(float64) - right.(float64), nil
 }
 func multiplyStage(left interface{}, right interface{}, parameters Parameters) (interface{}, error) {
 	return left.(float64) * right.(float64), nil

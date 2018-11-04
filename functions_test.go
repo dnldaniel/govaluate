@@ -14,7 +14,7 @@ func Test_OperandOnly(t *testing.T) {
 
 	assert.NoError(t, err)
 
-	result, err := expression.Eval(nil)
+	result, err := expression.Eval()
 	assert.NoError(t, err)
 	assert.Equal(t, "aaa", result)
 }
@@ -23,8 +23,10 @@ func Test_UnclosedBracketError(t *testing.T) {
 	_, err := NewEvaluableExpressionBuilder(func(operandName string) (interface{}, error) {
 		return operandName, nil
 	}).
-		Build("(aaa AND bbb")
+		WithOperator("&&", andOperator(nil)).
+		Build("(aaa && bbb")
 
+	assert.Error(t, err)
 	assert.Equal(t, "Unbalanced parenthesis", err.Error())
 }
 
@@ -32,9 +34,10 @@ func Test_AndRecognizedAsFunction_ErrorAsFunctionCannotBePrecededByFunction(t *t
 	_, err := NewEvaluableExpressionBuilder(func(operandName string) (interface{}, error) {
 		return operandName, nil
 	}).
-		Build("aaa AND bbb")
+		Build("aaa && bbb")
 
 	assert.Error(t, err)
+	assert.Equal(t, "Invalid token: '&&'", err.Error())
 }
 
 func Test_TwoOperandsSeparatedByCustomOr(t *testing.T) {
@@ -42,61 +45,69 @@ func Test_TwoOperandsSeparatedByCustomOr(t *testing.T) {
 	defer controller.Finish()
 
 	mock := MyMock{controller: controller}
-	call1 := controller.RecordCall(&mock, myMockMethodName, "OR", "aaa", "bbb")
+	call1 := controller.RecordCall(&mock, myMockMethodName, "||", "aaa", "bbb")
 	gomock.InOrder(call1)
 
 	expression, err := NewEvaluableExpressionBuilder(func(operandName string) (interface{}, error) {
 		return operandName, nil
 	}).
-		WithOperator("OR", orOperator(&mock)).
-		Build("aaa OR bbb")
+		WithOperator("||", orOperator(&mock)).
+		Build("aaa || bbb")
 
 	assert.NoError(t, err)
 
-	result, err := expression.Eval(nil)
+	result, err := expression.Eval()
 	assert.NoError(t, err)
-	assert.Equal(t, "(aaa OR bbb)", result)
+	assert.Equal(t, "(aaa || bbb)", result)
 }
 
-func Test_LotsOfBrackets_AND_OR(t *testing.T) {
+func Test_LotsOfBrackets_OPERATORS_AND_OR_SUBTRACT(t *testing.T) {
 	controller := gomock.NewController(t)
 	defer controller.Finish()
 
 	mock := MyMock{controller: controller}
-	call1 := controller.RecordCall(&mock, myMockMethodName, "AND", "bbb", "ccc")
-	call2 := controller.RecordCall(&mock, myMockMethodName, "AND", "ddd", "eee")
-	call3 := controller.RecordCall(&mock, myMockMethodName, "OR", "(bbb AND ccc)", "(ddd AND eee)")
-	call4 := controller.RecordCall(&mock, myMockMethodName, "OR", "aaa", "((bbb AND ccc) OR (ddd AND eee))")
-	call5 := controller.RecordCall(&mock, myMockMethodName, "AND", "(aaa OR ((bbb AND ccc) OR (ddd AND eee)))", "fff")
+	call1 := controller.RecordCall(&mock, myMockMethodName, "-", "bbb", "ccc")
+	call2 := controller.RecordCall(&mock, myMockMethodName, "&&", "ddd", "eee")
+	call3 := controller.RecordCall(&mock, myMockMethodName, "||", "(bbb - ccc)", "(ddd && eee)")
+	call4 := controller.RecordCall(&mock, myMockMethodName, "||", "aaa", "((bbb - ccc) || (ddd && eee))")
+	call5 := controller.RecordCall(&mock, myMockMethodName, "&&", "(aaa || ((bbb - ccc) || (ddd && eee)))", "fff")
 	gomock.InOrder(call1, call2, call3, call4, call5)
 
 	expression, err := NewEvaluableExpressionBuilder(func(operandName string) (interface{}, error) {
 		return operandName, nil
 	}).
-		WithOperator("AND", andOperator(&mock)).
-		WithOperator("OR", orOperator(&mock)).
-		Build("aaa OR (bbb AND ccc OR (ddd AND eee)) AND fff")
+		WithOperator("&&", andOperator(&mock)).
+		WithOperator("||", orOperator(&mock)).
+		WithOperator("-", substractOperator(&mock)).
+		Build("aaa || (bbb - ccc || (ddd && eee)) && fff")
 
 	assert.NoError(t, err)
 
-	result, err := expression.Eval(nil)
+	result, err := expression.Eval()
 	assert.NoError(t, err)
-	assert.Equal(t, "((aaa OR ((bbb AND ccc) OR (ddd AND eee))) AND fff)", result)
+	assert.Equal(t, "((aaa || ((bbb - ccc) || (ddd && eee))) && fff)", result)
 }
 
 const myMockMethodName = "OperatorCalled"
 
 func orOperator(mock *MyMock) EvaluationOperator {
 	return func(left interface{}, right interface{}, parameters Parameters) (interface{}, error) {
-		mock.OperatorCalled("OR", left, right)
-		return "(" + left.(string) + " OR " + right.(string) + ")", nil
+		mock.OperatorCalled("||", left, right)
+		return "(" + left.(string) + " || " + right.(string) + ")", nil
 	}
 }
 
 func andOperator(mock *MyMock) EvaluationOperator {
 	return func(left interface{}, right interface{}, parameters Parameters) (interface{}, error) {
-		mock.OperatorCalled("AND", left, right)
-		return "(" + left.(string) + " AND " + right.(string) + ")", nil
+		mock.OperatorCalled("&&", left, right)
+		return "(" + left.(string) + " && " + right.(string) + ")", nil
+	}
+}
+
+func substractOperator(mock *MyMock) EvaluationOperator {
+	return func(left interface{}, right interface{}, parameters Parameters) (interface{}, error) {
+		mock.OperatorCalled("-", left, right)
+		return "(" + left.(string) + " - " + right.(string) + ")", nil
 	}
 }
 

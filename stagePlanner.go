@@ -14,8 +14,6 @@ var stageSymbolMap = map[OperatorSymbol]EvaluationOperator{
 	LTE:            lteStage,
 	REQ:            regexStage,
 	NREQ:           notRegexStage,
-	AND:            andStage,
-	OR:             orStage,
 	IN:             inStage,
 	BITWISE_OR:     bitwiseOrStage,
 	BITWISE_AND:    bitwiseAndStage,
@@ -71,21 +69,20 @@ func init() {
 	// they simply need different type checks, symbols, and recursive precedents.
 	// While not all precedent phases are listed here, most can be represented this way.
 
-	//todo: add
-	//planLogicalSetMinus = makePrecedentFromPlanner(&precedencePlanner{
-	//	validSymbols:    map[string]OperatorSymbol{"AND": SET_AND},
-	//	validKinds:      []TokenKind{PROGRAMMABLE_OPERATOR},
-	//	typeErrorFormat: logicalErrorFormat,
-	//	next:            planFunction,
-	//})
-	planLogicalSetAnd = makePrecedentFromPlanner(&precedencePlanner{
-		validSymbols:    map[string]OperatorSymbol{"AND": SET_AND},
+	planLogicalSetMinus = makePrecedentFromPlanner(&precedencePlanner{
+		validSymbols:    map[string]OperatorSymbol{"-": SET_MINUS},
 		validKinds:      []TokenKind{PROGRAMMABLE_OPERATOR},
 		typeErrorFormat: logicalErrorFormat,
 		next:            planFunction,
 	})
+	planLogicalSetAnd = makePrecedentFromPlanner(&precedencePlanner{
+		validSymbols:    map[string]OperatorSymbol{"&&": SET_AND},
+		validKinds:      []TokenKind{PROGRAMMABLE_OPERATOR},
+		typeErrorFormat: logicalErrorFormat,
+		next:            planLogicalSetMinus,
+	})
 	planLogicalSetOr = makePrecedentFromPlanner(&precedencePlanner{
-		validSymbols:    map[string]OperatorSymbol{"OR": SET_OR},
+		validSymbols:    map[string]OperatorSymbol{"||": SET_OR},
 		validKinds:      []TokenKind{PROGRAMMABLE_OPERATOR},
 		typeErrorFormat: logicalErrorFormat,
 		next:            planLogicalSetAnd,
@@ -352,7 +349,6 @@ func planValue(stream *tokenStream, operatorBySymbol map[string]EvaluationOperat
 
 	switch token.Kind {
 
-
 	case CLAUSE:
 
 		ret, err = planTokens(stream, operatorBySymbol)
@@ -425,13 +421,6 @@ func findTypeChecks(symbol OperatorSymbol) typeChecks {
 		return typeChecks{
 			left:  isString,
 			right: isRegexOrString,
-		}
-	case AND:
-		fallthrough
-	case OR:
-		return typeChecks{
-			left:  isBool,
-			right: isBool,
 		}
 	case IN:
 		return typeChecks{

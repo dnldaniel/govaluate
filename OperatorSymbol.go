@@ -20,9 +20,6 @@ const (
 	NREQ
 	IN
 
-	AND
-	OR
-
 	SET_AND
 	SET_OR
 	SET_MINUS
@@ -65,7 +62,6 @@ const (
 	comparatorPrecedence
 	ternaryPrecedence
 	logicalAndPrecedence
-	logicalOrPrecedence
 	separatePrecedence
 )
 
@@ -94,16 +90,12 @@ func findOperatorPrecedenceForSymbol(symbol OperatorSymbol) operatorPrecedence {
 		fallthrough
 	case IN:
 		return comparatorPrecedence
-	case AND:
-		return logicalAndPrecedence
 	case SET_AND:
 		return logicalAndPrecedence
 	case SET_OR:
 		return logicalAndPrecedence
 	case SET_MINUS:
 		return logicalAndPrecedence
-	case OR:
-		return logicalOrPrecedence
 	case BITWISE_AND:
 		fallthrough
 	case BITWISE_OR:
@@ -164,24 +156,10 @@ var comparatorSymbols = map[string]OperatorSymbol{
 	"in": IN,
 }
 
-var exponentialSymbolsS = map[string]OperatorSymbol{
-	"**": EXPONENT,
-}
-
 var ternarySymbols = map[string]OperatorSymbol{
 	"?":  TERNARY_TRUE,
 	":":  TERNARY_FALSE,
 	"??": COALESCE,
-}
-
-var separatorSymbols = map[string]OperatorSymbol{
-	",": SEPARATE,
-}
-
-var operationsOnSetsSymbols = map[string]OperatorSymbol{
-	"AND":   SET_AND,
-	"OR":    SET_OR,
-	"MINUS": SET_MINUS, // relative complement
 }
 
 /*
@@ -228,14 +206,10 @@ func (this OperatorSymbol) String() string {
 		return "=~"
 	case NREQ:
 		return "!~"
-	case AND:
-		return "&&"
-	case OR:
-		return "||"
 	case SET_AND:
-		return "AND"
+		return "&&"
 	case SET_OR:
-		return "OR"
+		return "||"
 	case SET_MINUS:
 		return "-"
 	case IN:
@@ -260,8 +234,6 @@ func (this OperatorSymbol) String() string {
 		return "%"
 	case EXPONENT:
 		return "**"
-	case NEGATE:
-		return "-"
 	case INVERT:
 		return "!"
 	case BITWISE_NOT:
