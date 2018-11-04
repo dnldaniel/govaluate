@@ -6,9 +6,8 @@ import (
 )
 
 func Test(t *testing.T) {
-	inputExpression := "aaa OR (bbb AND ccc OR (ddd AND eee))"
+	inputExpression := "aa_a OR (bbb AND ccc OR (ddd AND eee))"
 	println(inputExpression)
-
 
 	var criterionHandler OperandHandler
 
@@ -17,7 +16,17 @@ func Test(t *testing.T) {
 		return criterionName, nil
 	}
 
-	expression, err := NewEvaluableExpressionBuilder(criterionHandler).WithOperator("AND", setAndStage).Build("aaa OR (bbb AND ccc OR (ddd AND eee))")
+
+	dupa := func (left interface{}, right interface{}, parameters Parameters) (interface{}, error) {
+	return "(" + left.(string) + " DUPA " + right.(string) + ")", nil
+	}
+
+	expression, err := NewEvaluableExpressionBuilder(criterionHandler).
+		WithOperator("AND", dupa).
+		WithOperator("OR", setOrStage).
+		Build(inputExpression)
+
+	assert.NoError(t, err)
 
 	result, err := expression.Eval(MapParameters(map[string]interface{}{}))
 	println(result.(string))

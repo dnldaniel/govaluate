@@ -3,7 +3,6 @@ package govaluate
 import (
 	"errors"
 	"fmt"
-	"time"
 )
 
 var stageSymbolMap = map[OperatorSymbol]EvaluationOperator{
@@ -45,7 +44,7 @@ var stageSymbolMap = map[OperatorSymbol]EvaluationOperator{
 	It's called a `precedent` because it is expected to handle exactly what precedence of operator,
 	and defer to other `precedent`s for other operators.
 */
-type precedent func(stream *tokenStream) (*evaluationStage, error)
+type precedent func(stream *tokenStream, operatorBySymbol map[string]EvaluationOperator) (*evaluationStage, error)
 
 /*
 	A convenience function for specifying the behavior of a `precedent`.
@@ -75,19 +74,19 @@ func init() {
 	//todo: add
 	//planLogicalSetMinus = makePrecedentFromPlanner(&precedencePlanner{
 	//	validSymbols:    map[string]OperatorSymbol{"AND": SET_AND},
-	//	validKinds:      []TokenKind{OPERATION_ON_SETS},
+	//	validKinds:      []TokenKind{PROGRAMMABLE_OPERATOR},
 	//	typeErrorFormat: logicalErrorFormat,
 	//	next:            planFunction,
 	//})
 	planLogicalSetAnd = makePrecedentFromPlanner(&precedencePlanner{
 		validSymbols:    map[string]OperatorSymbol{"AND": SET_AND},
-		validKinds:      []TokenKind{OPERATION_ON_SETS},
+		validKinds:      []TokenKind{PROGRAMMABLE_OPERATOR},
 		typeErrorFormat: logicalErrorFormat,
 		next:            planFunction,
 	})
 	planLogicalSetOr = makePrecedentFromPlanner(&precedencePlanner{
 		validSymbols:    map[string]OperatorSymbol{"OR": SET_OR},
-		validKinds:      []TokenKind{OPERATION_ON_SETS},
+		validKinds:      []TokenKind{PROGRAMMABLE_OPERATOR},
 		typeErrorFormat: logicalErrorFormat,
 		next:            planLogicalSetAnd,
 	})
@@ -102,7 +101,7 @@ func makePrecedentFromPlanner(planner *precedencePlanner) precedent {
 	var generated precedent
 	var nextRight precedent
 
-	generated = func(stream *tokenStream) (*evaluationStage, error) {
+	generated = func(stream *tokenStream, operatorBySymbol map[string]EvaluationOperator) (*evaluationStage, error) {
 		return planPrecedenceLevel(
 			stream,
 			planner.typeErrorFormat,
@@ -110,6 +109,7 @@ func makePrecedentFromPlanner(planner *precedencePlanner) precedent {
 			planner.validKinds,
 			nextRight,
 			planner.next,
+			operatorBySymbol,
 		)
 	}
 
@@ -150,14 +150,7 @@ func planTokens(stream *tokenStream, operatorBySymbol map[string]EvaluationOpera
 		return nil, nil
 	}
 
-	makePrecedentFromPlanner(&precedencePlanner{
-		validSymbols:    map[string]OperatorSymbol{"OR": SET_OR},
-		validKinds:      []TokenKind{OPERATION_ON_SETS},
-		typeErrorFormat: logicalErrorFormat,
-		next:            planLogicalSetAnd,
-	})
-
-	return planLogicalSetOr(stream)
+	return planLogicalSetOr(stream, operatorBySymbol)
 }
 
 /*
@@ -170,7 +163,7 @@ func planPrecedenceLevel(
 	validSymbols map[string]OperatorSymbol,
 	validKinds []TokenKind,
 	rightPrecedent precedent,
-	leftPrecedent precedent) (*evaluationStage, error) {
+	leftPrecedent precedent, operatorBySymbol map[string]EvaluationOperator) (*evaluationStage, error) {
 
 	var token ExpressionToken
 	var symbol OperatorSymbol
@@ -181,7 +174,7 @@ func planPrecedenceLevel(
 
 	if leftPrecedent != nil {
 
-		leftStage, err = leftPrecedent(stream)
+		leftStage, err = leftPrecedent(stream, operatorBySymbol)
 		if err != nil {
 			return nil, err
 		}
@@ -219,7 +212,7 @@ func planPrecedenceLevel(
 		}
 
 		if rightPrecedent != nil {
-			rightStage, err = rightPrecedent(stream)
+			rightStage, err = rightPrecedent(stream, operatorBySymbol)
 			if err != nil {
 				return nil, err
 			}
@@ -227,12 +220,19 @@ func planPrecedenceLevel(
 
 		checks = findTypeChecks(symbol)
 
+		var operator EvaluationOperator
+		if isString(token.Value) && operatorBySymbol[token.Value.(string)] != nil {
+			operator = operatorBySymbol[token.Value.(string)]
+		} else {
+			operator = stageSymbolMap[symbol]
+		}
+
 		return &evaluationStage{
 
 			symbol:     symbol,
 			leftStage:  leftStage,
 			rightStage: rightStage,
-			operator:   stageSymbolMap[symbol],
+			operator:   operator,
 
 			leftTypeCheck:   checks.left,
 			rightTypeCheck:  checks.right,
@@ -248,7 +248,7 @@ func planPrecedenceLevel(
 /*
 	A special case where functions need to be of higher precedence than values, and need a special wrapped execution stage operator.
 */
-func planFunction(stream *tokenStream) (*evaluationStage, error) {
+func planFunction(stream *tokenStream, operatorBySymbol map[string]EvaluationOperator) (*evaluationStage, error) {
 
 	var token ExpressionToken
 	var rightStage *evaluationStage
@@ -258,7 +258,7 @@ func planFunction(stream *tokenStream) (*evaluationStage, error) {
 
 	if token.Kind != FUNCTION {
 		stream.rewind()
-		return planAccessor(stream)
+		return planAccessor(stream, operatorBySymbol)
 	}
 
 	// would be needed only if functions had embedded values
@@ -287,7 +287,7 @@ func planFunction(stream *tokenStream) (*evaluationStage, error) {
 	}, nil
 }
 
-func planAccessor(stream *tokenStream) (*evaluationStage, error) {
+func planAccessor(stream *tokenStream, operatorBySymbol map[string]EvaluationOperator) (*evaluationStage, error) {
 
 	var token, otherToken ExpressionToken
 	var rightStage *evaluationStage
@@ -301,7 +301,7 @@ func planAccessor(stream *tokenStream) (*evaluationStage, error) {
 
 	if token.Kind != ACCESSOR {
 		stream.rewind()
-		return planValue(stream)
+		return planValue(stream, operatorBySymbol)
 	}
 
 	// check if this is meant to be a function or a field.
@@ -314,7 +314,7 @@ func planAccessor(stream *tokenStream) (*evaluationStage, error) {
 
 			stream.rewind()
 
-			rightStage, err = planTokens(stream)
+			rightStage, err = planTokens(stream, nil)
 			if err != nil {
 				return nil, err
 			}
@@ -336,7 +336,7 @@ func planAccessor(stream *tokenStream) (*evaluationStage, error) {
 	A truly special precedence function, this handles all the "lowest-case" errata of the process, including literals, parmeters,
 	clauses, and prefixes.
 */
-func planValue(stream *tokenStream) (*evaluationStage, error) {
+func planValue(stream *tokenStream, operatorBySymbol map[string]EvaluationOperator) (*evaluationStage, error) {
 
 	var token ExpressionToken
 	var symbol OperatorSymbol
@@ -352,9 +352,10 @@ func planValue(stream *tokenStream) (*evaluationStage, error) {
 
 	switch token.Kind {
 
+
 	case CLAUSE:
 
-		ret, err = planTokens(stream)
+		ret, err = planTokens(stream, operatorBySymbol)
 		if err != nil {
 			return nil, err
 		}
@@ -379,25 +380,6 @@ func planValue(stream *tokenStream) (*evaluationStage, error) {
 		// so we just return nil so that the stage planner continues on its way.
 		stream.rewind()
 		return nil, nil
-
-	case VARIABLE:
-		operator = makeParameterStage(token.Value.(string))
-
-	case NUMERIC:
-		fallthrough
-	case STRING:
-		fallthrough
-	case PATTERN:
-		fallthrough
-	case BOOLEAN:
-		symbol = LITERAL
-		operator = makeLiteralStage(token.Value)
-	case OPERATION_ON_SETS:
-		symbol = LITERAL
-		operator = makeLiteralStage(token.Value)
-	case TIME:
-		symbol = LITERAL
-		operator = makeLiteralStage(float64(token.Value.(time.Time).Unix()))
 	}
 
 	if operator == nil {

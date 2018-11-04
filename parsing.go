@@ -5,12 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
-	"strconv"
 	"time"
 	"unicode"
 )
 
-func parseTokens(expression string, criterionFunction OperandHandler) ([]ExpressionToken, error) {
+func parseTokens(expression string, criterionFunction OperandHandler, operatorBySymbol map[string]EvaluationOperator) ([]ExpressionToken, error) {
 
 	var ret []ExpressionToken
 	var token ExpressionToken
@@ -22,7 +21,7 @@ func parseTokens(expression string, criterionFunction OperandHandler) ([]Express
 
 	for stream.canRead() {
 
-		token, err, found = readToken(stream, criterionFunction)
+		token, err, found = readToken(stream, criterionFunction, operatorBySymbol)
 
 		if err != nil {
 			return ret, err
@@ -44,7 +43,7 @@ func parseTokens(expression string, criterionFunction OperandHandler) ([]Express
 	return ret, nil
 }
 
-func readToken(stream *lexerStream, criterionFunction OperandHandler) (ExpressionToken, error, bool) {
+func readToken(stream *lexerStream, criterionFunction OperandHandler, operatorBySymbol map[string]EvaluationOperator) (ExpressionToken, error, bool) {
 
 	var ret ExpressionToken
 	var tokenValue interface{}
@@ -54,7 +53,6 @@ func readToken(stream *lexerStream, criterionFunction OperandHandler) (Expressio
 	var character rune
 	var found bool
 	var completed bool
-	var err error
 
 	// numeric is 0-9, or . or 0x followed by digits
 	// string starts with '
@@ -72,73 +70,18 @@ func readToken(stream *lexerStream, criterionFunction OperandHandler) (Expressio
 
 		kind = UNKNOWN
 
-		// numeric constant
-		if isNumeric(character) {
 
-			if stream.canRead() && character == '0' {
-				character = stream.readCharacter()
 
-				if stream.canRead() && character == 'x' {
-					tokenString, _ = readUntilFalse(stream, false, true, true, isHexDigit)
-					tokenValueInt, err := strconv.ParseUint(tokenString, 16, 64)
-
-					if err != nil {
-						errorMsg := fmt.Sprintf("Unable to parse hex value '%v' to uint64\n", tokenString)
-						return ExpressionToken{}, errors.New(errorMsg), false
-					}
-
-					kind = NUMERIC
-					tokenValue = float64(tokenValueInt)
-					break
-				} else {
-					stream.rewind(1)
-				}
-			}
-
-			tokenString = readTokenUntilFalse(stream, isNumeric)
-			tokenValue, err = strconv.ParseFloat(tokenString, 64)
-
-			if err != nil {
-				errorMsg := fmt.Sprintf("Unable to parse numeric value '%v' to float64\n", tokenString)
-				return ExpressionToken{}, errors.New(errorMsg), false
-			}
-			kind = NUMERIC
-			break
-		}
-
-		// comma, separator
-		if character == ',' {
-
-			tokenValue = ","
-			kind = SEPARATOR
-			break
-		}
-
-		// escaped variable
-		if character == '[' {
-
-			tokenValue, completed = readUntilFalse(stream, true, false, true, isNotClosingBracket)
-			kind = VARIABLE
-
-			if !completed {
-				return ExpressionToken{}, errors.New("Unclosed parameter bracket"), false
-			}
-
-			// above method normally rewinds us to the closing bracket, which we want to skip.
-			stream.rewind(-1)
-			break
-		}
-
-		for setLogicalOperatorSymbol, setLogicalOperator := range operationsOnSetsSymbols {
+		for setLogicalOperatorSymbol := range operatorBySymbol {
 			if stream.isNext(setLogicalOperatorSymbol, 1) {
-				kind = OPERATION_ON_SETS
-				tokenValue = setLogicalOperator.String()
+				kind = PROGRAMMABLE_OPERATOR
+				tokenValue = setLogicalOperatorSymbol
 				stream.forward(setLogicalOperatorSymbol)
 				break
 			}
 		}
 
-		if kind == OPERATION_ON_SETS {
+		if kind == PROGRAMMABLE_OPERATOR {
 			break
 		}
 
@@ -196,7 +139,7 @@ func readToken(stream *lexerStream, criterionFunction OperandHandler) (Expressio
 	ret.Kind = kind
 	ret.Value = tokenValue
 
-	return ret, nil, (kind != UNKNOWN)
+	return ret, nil, kind != UNKNOWN
 }
 
 func readTokenUntilFalse(stream *lexerStream, condition func(rune) bool) string {

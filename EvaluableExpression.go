@@ -69,7 +69,7 @@ func NewFunctionalCriteriaExpression(expression string, function OperandHandler,
 	ret.QueryDateFormat = isoDateFormat
 	ret.inputExpression = expression
 
-	ret.tokens, err = parseTokens(expression, function)
+	ret.tokens, err = parseTokens(expression, function, operatorBySymbol)
 	if err != nil {
 		return nil, err
 	}
