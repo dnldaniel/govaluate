@@ -1,6 +1,9 @@
 The MIT License (MIT)
 
-Copyright (c) 2014-2016 George Lester
+This library is a fork of Knetic/govaluate library for processing logical expressions.
+
+Copyright for client programmable operators to (c) 2018 Daniel Szymatowicz
+Copyright for the rest of the project to (c) 2014-2016 George Lester
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
