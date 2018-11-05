@@ -13,3 +13,5 @@ bgaifullin (lifting restriction on complex/struct types)
 gautambt (hexadecimal literals)
 felixonmars (fix multiple typos in test names)
 sambonfire (automatic type conversion for accessor function calls)
+
+dnldaniel (making operators programmable)
