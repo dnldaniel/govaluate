@@ -14,7 +14,7 @@ func Test_OperandOnly(t *testing.T) {
 
 	assert.NoError(t, err)
 
-	result, err := expression.Eval()
+	result, err := expression.Evaluate()
 	assert.NoError(t, err)
 	assert.Equal(t, "aaa", result)
 }
@@ -56,7 +56,7 @@ func Test_TwoOperandsSeparatedByCustomOr(t *testing.T) {
 
 	assert.NoError(t, err)
 
-	result, err := expression.Eval()
+	result, err := expression.Evaluate()
 	assert.NoError(t, err)
 	assert.Equal(t, "(aaa || bbb)", result)
 }
@@ -83,33 +83,33 @@ func Test_LotsOfBrackets_OPERATORS_AND_OR_SUBTRACT(t *testing.T) {
 
 	assert.NoError(t, err)
 
-	result, err := expression.Eval()
+	result, err := expression.Evaluate()
 	assert.NoError(t, err)
 	assert.Equal(t, "((aaa || ((bbb - ccc) || (ddd && eee))) && fff)", result)
 }
 
-const myMockMethodName = "OperatorCalled"
-
 func orOperator(mock *MyMock) EvaluationOperator {
-	return func(left interface{}, right interface{}, parameters Parameters) (interface{}, error) {
+	return func(left interface{}, right interface{}) (interface{}, error) {
 		mock.OperatorCalled("||", left, right)
 		return "(" + left.(string) + " || " + right.(string) + ")", nil
 	}
 }
 
 func andOperator(mock *MyMock) EvaluationOperator {
-	return func(left interface{}, right interface{}, parameters Parameters) (interface{}, error) {
+	return func(left interface{}, right interface{}) (interface{}, error) {
 		mock.OperatorCalled("&&", left, right)
 		return "(" + left.(string) + " && " + right.(string) + ")", nil
 	}
 }
 
 func substractOperator(mock *MyMock) EvaluationOperator {
-	return func(left interface{}, right interface{}, parameters Parameters) (interface{}, error) {
+	return func(left interface{}, right interface{}) (interface{}, error) {
 		mock.OperatorCalled("-", left, right)
 		return "(" + left.(string) + " - " + right.(string) + ")", nil
 	}
 }
+
+const myMockMethodName = "OperatorCalled"
 
 type MyMock struct {
 	controller *gomock.Controller
