@@ -47,12 +47,9 @@ func readToken(stream *lexerStream, criterionFunction OperandHandler, operatorBy
 
 	var ret ExpressionToken
 	var tokenValue interface{}
-	var tokenTime time.Time
 	var tokenString string
 	var kind TokenKind
 	var character rune
-	var found bool
-	var completed bool
 
 	// numeric is 0-9, or . or 0x followed by digits
 	// string starts with '
@@ -70,13 +67,11 @@ func readToken(stream *lexerStream, criterionFunction OperandHandler, operatorBy
 
 		kind = UNKNOWN
 
-
-
 		for setLogicalOperatorSymbol := range operatorBySymbol {
 			if stream.isNext(setLogicalOperatorSymbol, 1) {
 				kind = PROGRAMMABLE_OPERATOR
 				tokenValue = setLogicalOperatorSymbol
-				stream.forward(setLogicalOperatorSymbol)
+				stream.forward(len(setLogicalOperatorSymbol) - 1)
 				break
 			}
 		}
@@ -92,27 +87,6 @@ func readToken(stream *lexerStream, criterionFunction OperandHandler, operatorBy
 
 			kind = FUNCTION
 			tokenValue = FunctionParameterPair{function: criterionFunction, parameter: tokenString}
-			break
-		}
-
-		if !isNotQuote(character) {
-			tokenValue, completed = readUntilFalse(stream, true, false, true, isNotQuote)
-
-			if !completed {
-				return ExpressionToken{}, errors.New("Unclosed string literal"), false
-			}
-
-			// advance the stream one position, since reading until false assumes the terminator is a real token
-			stream.rewind(-1)
-
-			// check to see if this can be parsed as a time.
-			tokenTime, found = tryParseTime(tokenValue.(string))
-			if found {
-				kind = TIME
-				tokenValue = tokenTime
-			} else {
-				kind = STRING
-			}
 			break
 		}
 
@@ -268,24 +242,6 @@ func checkBalance(tokens []ExpressionToken) error {
 	return nil
 }
 
-func isHexDigit(character rune) bool {
-
-	character = unicode.ToLower(character)
-
-	return unicode.IsDigit(character) ||
-		character == 'a' ||
-		character == 'b' ||
-		character == 'c' ||
-		character == 'd' ||
-		character == 'e' ||
-		character == 'f'
-}
-
-func isNumeric(character rune) bool {
-
-	return unicode.IsDigit(character) || character == '.'
-}
-
 func isNotQuote(character rune) bool {
 
 	return character != '\'' && character != '"'
@@ -308,11 +264,6 @@ func isVariableName(character rune) bool {
 		unicode.IsDigit(character) ||
 		character == '_' ||
 		character == '.'
-}
-
-func isNotClosingBracket(character rune) bool {
-
-	return character != ']'
 }
 
 /*

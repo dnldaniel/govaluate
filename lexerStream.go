@@ -39,15 +39,15 @@ func (this lexerStream) canRead() bool {
 }
 
 func (this lexerStream) isNext(clause string, rewind int) bool {
-	if (this.length - this.position + rewind) >= len(clause) && this.position-rewind >= 0 {
+	if (this.length-this.position+rewind) >= len(clause) && this.position-rewind >= 0 {
 		return clause == string(this.source[this.position-rewind:this.position+len(clause)-rewind])
 	}
 
 	return false
 }
 
-func (this *lexerStream) forward(clause string) {
-	if (this.length - this.position) >= len(clause) {
-		this.position += len(clause)
+func (this *lexerStream) forward(count int) {
+	if (this.length - this.position) >= count {
+		this.position += count
 	}
 }

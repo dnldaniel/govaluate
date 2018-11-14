@@ -45,6 +45,27 @@ func Test_TwoOperandsSeparatedByCustomOr(t *testing.T) {
 	defer controller.Finish()
 
 	mock := MyMock{controller: controller}
+	call1 := controller.RecordCall(&mock, myMockMethodName, "||", "a22aa", "bbb")
+	gomock.InOrder(call1)
+
+	expression, err := NewEvaluableExpressionBuilder(func(operandName string) (interface{}, error) {
+		return operandName, nil
+	}).
+		WithOperator("||", orOperator(&mock)).
+		Build("a22aa || bbb")
+
+	assert.NoError(t, err)
+
+	result, err := expression.Evaluate()
+	assert.NoError(t, err)
+	assert.Equal(t, "(a22aa || bbb)", result)
+}
+
+func Test_TwoOperandsSeparatedByCustomOrWithSpaceOrWithout(t *testing.T) {
+	controller := gomock.NewController(t)
+	defer controller.Finish()
+
+	mock := MyMock{controller: controller}
 	call1 := controller.RecordCall(&mock, myMockMethodName, "||", "aaa", "bbb")
 	gomock.InOrder(call1)
 
@@ -52,7 +73,7 @@ func Test_TwoOperandsSeparatedByCustomOr(t *testing.T) {
 		return operandName, nil
 	}).
 		WithOperator("||", orOperator(&mock)).
-		Build("aaa || bbb")
+		Build("aaa ||bbb")
 
 	assert.NoError(t, err)
 
