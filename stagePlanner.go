@@ -147,7 +147,19 @@ func planTokens(stream *tokenStream, operatorBySymbol map[string]EvaluationOpera
 		return nil, nil
 	}
 
-	return planLogicalSetOr(stream, operatorBySymbol)
+	myNext := planFunction
+	// operator symbol is not relevant in case of programmatic evaluation operators
+	operatorSymbol := SET_AND
+	for symbol := range operatorBySymbol {
+		myNext = makePrecedentFromPlanner(&precedencePlanner{
+			validSymbols:    map[string]OperatorSymbol{symbol: operatorSymbol},
+			validKinds:      []TokenKind{PROGRAMMABLE_OPERATOR},
+			typeErrorFormat: logicalErrorFormat,
+			next:            myNext,
+		})
+	}
+
+	return myNext(stream, operatorBySymbol)
 }
 
 /*

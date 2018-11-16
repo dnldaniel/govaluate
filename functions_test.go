@@ -61,6 +61,29 @@ func Test_TwoOperandsSeparatedByCustomOr(t *testing.T) {
 	assert.Equal(t, "(a22aa || bbb)", result)
 }
 
+func Test_TwoOperandsSeparatedBySomeMadeUpOperand(t *testing.T) {
+	controller := gomock.NewController(t)
+	defer controller.Finish()
+
+	mock := MyMock{controller: controller}
+	call1 := controller.RecordCall(&mock, myMockMethodName, "||", "a22aa", "bbb")
+	call2 := controller.RecordCall(&mock, myMockMethodName, "$$", "(a22aa || bbb)", "ccc")
+	gomock.InOrder(call1, call2)
+
+	expression, err := NewEvaluableExpressionBuilder(func(operandName string) (interface{}, error) {
+		return operandName, nil
+	}).
+		WithOperator("||", orOperator(&mock)).
+		WithOperator("$$", anyOperator(&mock, "$$")).
+		Build("a22aa || bbb $$ ccc")
+
+	assert.NoError(t, err)
+
+	result, err := expression.Evaluate()
+	assert.NoError(t, err)
+	assert.Equal(t, "((a22aa || bbb) $$ ccc)", result)
+}
+
 func Test_TwoOperandsSeparatedByCustomOrWithSpaceOrWithout(t *testing.T) {
 	controller := gomock.NewController(t)
 	defer controller.Finish()
@@ -110,23 +133,21 @@ func Test_LotsOfBrackets_OPERATORS_AND_OR_SUBTRACT(t *testing.T) {
 }
 
 func orOperator(mock *MyMock) EvaluationOperator {
-	return func(left interface{}, right interface{}) (interface{}, error) {
-		mock.OperatorCalled("||", left, right)
-		return "(" + left.(string) + " || " + right.(string) + ")", nil
-	}
+	return anyOperator(mock, "||")
 }
 
 func andOperator(mock *MyMock) EvaluationOperator {
-	return func(left interface{}, right interface{}) (interface{}, error) {
-		mock.OperatorCalled("&&", left, right)
-		return "(" + left.(string) + " && " + right.(string) + ")", nil
-	}
+	return anyOperator(mock, "&&")
 }
 
 func substractOperator(mock *MyMock) EvaluationOperator {
+	return anyOperator(mock, "-")
+}
+
+func anyOperator(mock *MyMock, operatorSymbol string) EvaluationOperator {
 	return func(left interface{}, right interface{}) (interface{}, error) {
-		mock.OperatorCalled("-", left, right)
-		return "(" + left.(string) + " - " + right.(string) + ")", nil
+		mock.OperatorCalled(operatorSymbol, left, right)
+		return "(" + left.(string) + " " + operatorSymbol + " " + right.(string) + ")", nil
 	}
 }
 
