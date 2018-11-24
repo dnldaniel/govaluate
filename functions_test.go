@@ -45,20 +45,20 @@ func Test_TwoOperandsSeparatedByCustomOr(t *testing.T) {
 	defer controller.Finish()
 
 	mock := MyMock{controller: controller}
-	call1 := controller.RecordCall(&mock, myMockMethodName, "||", "a22aa", "bbb")
+	call1 := controller.RecordCall(&mock, myMockMethodName, "|", "a22aa", "bbb")
 	gomock.InOrder(call1)
 
 	expression, err := NewEvaluableExpressionBuilder(func(operandName string) (interface{}, error) {
 		return operandName, nil
 	}).
-		WithOperator("||", orOperator(&mock)).
-		Build("a22aa || bbb")
+		WithOperator("|", orOperator(&mock)).
+		Build("a22aa | bbb")
 
 	assert.NoError(t, err)
 
 	result, err := expression.Evaluate()
 	assert.NoError(t, err)
-	assert.Equal(t, "(a22aa || bbb)", result)
+	assert.Equal(t, "(a22aa | bbb)", result)
 }
 
 func Test_TwoOperandsSeparatedBySomeMadeUpOperand(t *testing.T) {
@@ -66,22 +66,22 @@ func Test_TwoOperandsSeparatedBySomeMadeUpOperand(t *testing.T) {
 	defer controller.Finish()
 
 	mock := MyMock{controller: controller}
-	call1 := controller.RecordCall(&mock, myMockMethodName, "||", "a22aa", "bbb")
-	call2 := controller.RecordCall(&mock, myMockMethodName, "$$", "(a22aa || bbb)", "ccc")
+	call1 := controller.RecordCall(&mock, myMockMethodName, "|", "a22aa", "bbb")
+	call2 := controller.RecordCall(&mock, myMockMethodName, "$$", "(a22aa | bbb)", "ccc")
 	gomock.InOrder(call1, call2)
 
 	expression, err := NewEvaluableExpressionBuilder(func(operandName string) (interface{}, error) {
 		return operandName, nil
 	}).
-		WithOperator("||", orOperator(&mock)).
+		WithOperator("|", orOperator(&mock)).
 		WithOperator("$$", anyOperator(&mock, "$$")).
-		Build("a22aa || bbb $$ ccc")
+		Build("a22aa | bbb $$ ccc")
 
 	assert.NoError(t, err)
 
 	result, err := expression.Evaluate()
 	assert.NoError(t, err)
-	assert.Equal(t, "((a22aa || bbb) $$ ccc)", result)
+	assert.Equal(t, "((a22aa | bbb) $$ ccc)", result)
 }
 
 func Test_TwoOperandsSeparatedByCustomOrWithSpaceOrWithout(t *testing.T) {
@@ -89,20 +89,20 @@ func Test_TwoOperandsSeparatedByCustomOrWithSpaceOrWithout(t *testing.T) {
 	defer controller.Finish()
 
 	mock := MyMock{controller: controller}
-	call1 := controller.RecordCall(&mock, myMockMethodName, "||", "aaa", "bbb")
+	call1 := controller.RecordCall(&mock, myMockMethodName, "|", "aaa", "bbb")
 	gomock.InOrder(call1)
 
 	expression, err := NewEvaluableExpressionBuilder(func(operandName string) (interface{}, error) {
 		return operandName, nil
 	}).
-		WithOperator("||", orOperator(&mock)).
-		Build("aaa ||bbb")
+		WithOperator("|", orOperator(&mock)).
+		Build("aaa |bbb")
 
 	assert.NoError(t, err)
 
 	result, err := expression.Evaluate()
 	assert.NoError(t, err)
-	assert.Equal(t, "(aaa || bbb)", result)
+	assert.Equal(t, "(aaa | bbb)", result)
 }
 
 func Test_LotsOfBrackets_OPERATORS_AND_OR_SUBTRACT(t *testing.T) {
@@ -111,33 +111,61 @@ func Test_LotsOfBrackets_OPERATORS_AND_OR_SUBTRACT(t *testing.T) {
 
 	mock := MyMock{controller: controller}
 	call1 := controller.RecordCall(&mock, myMockMethodName, "-", "bbb", "ccc")
-	call2 := controller.RecordCall(&mock, myMockMethodName, "&&", "ddd", "eee")
-	call3 := controller.RecordCall(&mock, myMockMethodName, "||", "(bbb - ccc)", "(ddd && eee)")
-	call4 := controller.RecordCall(&mock, myMockMethodName, "||", "aaa", "((bbb - ccc) || (ddd && eee))")
-	call5 := controller.RecordCall(&mock, myMockMethodName, "&&", "(aaa || ((bbb - ccc) || (ddd && eee)))", "fff")
+	call2 := controller.RecordCall(&mock, myMockMethodName, "&", "ddd", "eee")
+	call3 := controller.RecordCall(&mock, myMockMethodName, "|", "(bbb - ccc)", "(ddd & eee)")
+	call4 := controller.RecordCall(&mock, myMockMethodName, "|", "aaa", "((bbb - ccc) | (ddd & eee))")
+	call5 := controller.RecordCall(&mock, myMockMethodName, "&", "(aaa | ((bbb - ccc) | (ddd & eee)))", "fff")
 	gomock.InOrder(call1, call2, call3, call4, call5)
 
 	expression, err := NewEvaluableExpressionBuilder(func(operandName string) (interface{}, error) {
 		return operandName, nil
 	}).
-		WithOperator("&&", andOperator(&mock)).
-		WithOperator("||", orOperator(&mock)).
+		WithOperator("&", andOperator(&mock)).
+		WithOperator("|", orOperator(&mock)).
 		WithOperator("-", substractOperator(&mock)).
-		Build("aaa || (bbb - ccc || (ddd && eee)) && fff")
+		Build("aaa | (bbb - ccc | (ddd & eee)) & fff")
 
 	assert.NoError(t, err)
 
 	result, err := expression.Evaluate()
 	assert.NoError(t, err)
-	assert.Equal(t, "((aaa || ((bbb - ccc) || (ddd && eee))) && fff)", result)
+	assert.Equal(t, "((aaa | ((bbb - ccc) | (ddd & eee))) & fff)", result)
+}
+
+func Test_EqualPrecedence_LotsOfBrackets_OPERATORS_AND_OR_SUBTRACT(t *testing.T) {
+	controller := gomock.NewController(t)
+	defer controller.Finish()
+
+	mock := MyMock{controller: controller}
+	call1 := controller.RecordCall(&mock, myMockMethodName, "&", "B", "C")
+	call2 := controller.RecordCall(&mock, myMockMethodName, "-", "A", "(B & C)")
+	call3 := controller.RecordCall(&mock, myMockMethodName, "&", "(A - (B & C))", "D")
+	call4 := controller.RecordCall(&mock, myMockMethodName, "|", "((A - (B & C)) & D)", "E")
+	call5 := controller.RecordCall(&mock, myMockMethodName, "|", "F", "G")
+	call6 := controller.RecordCall(&mock, myMockMethodName, "-", "(((A - (B & C)) & D) | E)", "(F | G)")
+	gomock.InOrder(call1, call2, call3, call4, call5, call6)
+
+	expression, err := NewEvaluableExpressionBuilder(func(operandName string) (interface{}, error) {
+		return operandName, nil
+	}).
+		WithOperator("&", andOperator(&mock)).
+		WithOperator("|", orOperator(&mock)).
+		WithOperator("-", substractOperator(&mock)).
+		Build("A - (B & C) & D | E - (F | G)")
+
+	assert.NoError(t, err)
+
+	result, err := expression.Evaluate()
+	assert.NoError(t, err)
+	assert.Equal(t, "((((A - (B & C)) & D) | E) - (F | G))", result)
 }
 
 func orOperator(mock *MyMock) EvaluationOperator {
-	return anyOperator(mock, "||")
+	return anyOperator(mock, "|")
 }
 
 func andOperator(mock *MyMock) EvaluationOperator {
-	return anyOperator(mock, "&&")
+	return anyOperator(mock, "&")
 }
 
 func substractOperator(mock *MyMock) EvaluationOperator {

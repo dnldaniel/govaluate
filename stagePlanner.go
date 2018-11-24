@@ -59,36 +59,6 @@ type precedencePlanner struct {
 	nextRight precedent
 }
 
-var planLogicalSetAnd precedent
-var planLogicalSetOr precedent
-var planLogicalSetMinus precedent
-
-func init() {
-
-	// all these stages can use the same code (in `planPrecedenceLevel`) to execute,
-	// they simply need different type checks, symbols, and recursive precedents.
-	// While not all precedent phases are listed here, most can be represented this way.
-
-	planLogicalSetMinus = makePrecedentFromPlanner(&precedencePlanner{
-		validSymbols:    map[string]OperatorSymbol{"-": SET_MINUS},
-		validKinds:      []TokenKind{PROGRAMMABLE_OPERATOR},
-		typeErrorFormat: logicalErrorFormat,
-		next:            planFunction,
-	})
-	planLogicalSetAnd = makePrecedentFromPlanner(&precedencePlanner{
-		validSymbols:    map[string]OperatorSymbol{"&&": SET_AND},
-		validKinds:      []TokenKind{PROGRAMMABLE_OPERATOR},
-		typeErrorFormat: logicalErrorFormat,
-		next:            planLogicalSetMinus,
-	})
-	planLogicalSetOr = makePrecedentFromPlanner(&precedencePlanner{
-		validSymbols:    map[string]OperatorSymbol{"||": SET_OR},
-		validKinds:      []TokenKind{PROGRAMMABLE_OPERATOR},
-		typeErrorFormat: logicalErrorFormat,
-		next:            planLogicalSetAnd,
-	})
-}
-
 /*
 	Given a planner, creates a function which will evaluate a specific precedence level of operators,
 	and link it to other `precedent`s which recurse to parse other precedence levels.
@@ -141,25 +111,25 @@ func planStages(tokens []ExpressionToken, operatorBySymbol map[string]Evaluation
 	return stage, nil
 }
 
-func planTokens(stream *tokenStream, operatorBySymbol map[string]EvaluationOperator) (*evaluationStage, error) {
+func planTokens(stream *tokenStream, evaluatorBySymbol map[string]EvaluationOperator) (*evaluationStage, error) {
 
 	if !stream.hasNext() {
 		return nil, nil
 	}
 
-	myNext := planFunction
 	// operator symbol is not relevant in case of programmatic evaluation operators
-	operatorSymbol := SET_AND
-	for symbol := range operatorBySymbol {
-		myNext = makePrecedentFromPlanner(&precedencePlanner{
-			validSymbols:    map[string]OperatorSymbol{symbol: operatorSymbol},
-			validKinds:      []TokenKind{PROGRAMMABLE_OPERATOR},
-			typeErrorFormat: logicalErrorFormat,
-			next:            myNext,
-		})
+	operatorsBySymbol := make(map[string]OperatorSymbol)
+	for symbol := range evaluatorBySymbol {
+		operatorsBySymbol[symbol] = SET_AND
 	}
+	myNext := makePrecedentFromPlanner(&precedencePlanner{
+		validSymbols:    operatorsBySymbol,
+		validKinds:      []TokenKind{PROGRAMMABLE_OPERATOR},
+		typeErrorFormat: logicalErrorFormat,
+		next:            planFunction,
+	})
 
-	return myNext(stream, operatorBySymbol)
+	return myNext(stream, evaluatorBySymbol)
 }
 
 /*

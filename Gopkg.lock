@@ -2,38 +2,51 @@
 
 
 [[projects]]
+  digest = "1:ffe9824d294da03b391f44e1ae8281281b4afc1bdaa9588c9097785e3af10cec"
   name = "github.com/davecgh/go-spew"
   packages = ["spew"]
+  pruneopts = "UT"
   revision = "8991bc29aa16c548c550c7ff78260e27b9ab7c73"
   version = "v1.1.1"
 
 [[projects]]
+  digest = "1:bc38c7c481812e178d85160472e231c5e1c9a7f5845d67e23ee4e706933c10d8"
   name = "github.com/golang/mock"
   packages = ["gomock"]
+  pruneopts = "UT"
   revision = "c34cdb4725f4c3844d095133c6e40e448b86589b"
   version = "v1.1.1"
 
 [[projects]]
+  digest = "1:0028cb19b2e4c3112225cd871870f2d9cf49b9b4276531f03438a88e94be86fe"
   name = "github.com/pmezard/go-difflib"
   packages = ["difflib"]
+  pruneopts = "UT"
   revision = "792786c7400a136282c1664665ae0a8db921c6c2"
   version = "v1.0.0"
 
 [[projects]]
   branch = "master"
+  digest = "1:73b1ad32a3a4f137684d3b16eb2ef86f6348d60903c3893bfff88b46ff9a0bdc"
   name = "github.com/stretchr/testify"
   packages = ["assert"]
-  revision = "04af85275a5c7ac09d16bb3b9b2e751ed45154e5"
+  pruneopts = "UT"
+  revision = "8019298d9fa5a04fc2ad10ae03349df3483096a6"
 
 [[projects]]
   branch = "master"
+  digest = "1:76ee51c3f468493aff39dbacc401e8831fbb765104cbf613b89bef01cf4bad70"
   name = "golang.org/x/net"
   packages = ["context"]
-  revision = "10aee181995363b41f712a55844a0dd52ea04646"
+  pruneopts = "UT"
+  revision = "adae6a3d119ae4890b46832a2e88a95adc62b8e7"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "f95009249fc6c05383fd1cca0cd6254381fe65c79eae9dc8c87c6544ee3be136"
+  input-imports = [
+    "github.com/golang/mock/gomock",
+    "github.com/stretchr/testify/assert",
+  ]
   solver-name = "gps-cdcl"
   solver-version = 1
